@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worker Profile — LabourLink</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <header class="navbar" id="navbar"></header>
+
+    <div class="page-container">
+        <div class="profile-header" id="profileHeader"><div class="spinner"></div></div>
+        <div id="endorsementsSection" style="margin-bottom: 28px;"></div>
+        <div id="historySection"></div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const workerId = urlParams.get('id');
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            renderNavbar('profile');
+            if (!workerId) { document.getElementById('profileHeader').innerHTML = `<div class="empty-state"><h3>No worker specified</h3></div>`; return; }
+            await Promise.all([loadProfile(), loadEndorsements(), loadWorkHistory()]);
+        });
+
+        async function loadProfile() {
+            const result = await api(`/users/${workerId}`);
+            if (!result.success) { document.getElementById('profileHeader').innerHTML = `<div class="empty-state"><h3>Worker not found</h3></div>`; return; }
+            const w = result.data;
+            document.title = `${w.name} — LabourLink`;
+            const histRes = await api(`/work-history/worker/${workerId}`);
+            const histCount = histRes.success ? histRes.data.length : 0;
+            document.getElementById('profileHeader').innerHTML = `
+                <div class="profile-avatar">${getInitials(w.name)}</div>
+                <div class="profile-info">
+                    <h1>${w.name}</h1>
+                    <div class="subtitle">${skillDisplay(w.primarySkill)} &nbsp;•&nbsp; 📍 ${w.city || 'N/A'} &nbsp;•&nbsp; Member since ${formatDate(w.createdAt)}</div>
+                    <div class="profile-stats">
+                        <div class="profile-stat"><div class="value" style="color: var(--warning);">${(w.averageRating || 0).toFixed(1)}</div><div class="label">${renderStars(w.averageRating)} (${w.totalRatings || 0})</div></div>
+                        <div class="profile-stat"><div class="value" style="color: var(--accent);">${histCount}</div><div class="label" data-i18n="jobs_completed">Jobs Done</div></div>
+                    </div>
+                </div>
+            `;
+            applyTranslations();
+        }
+
+        async function loadEndorsements() {
+            const result = await api(`/work-history/endorsements/worker/${workerId}`);
+            const endorsements = result.success ? result.data : [];
+            if (endorsements.length === 0) { document.getElementById('endorsementsSection').innerHTML = `<h2 style="font-size: 1.25rem; margin-bottom: 14px;">🏷️ Skill Endorsements</h2><p style="color: var(--text-muted);">No endorsements yet</p>`; return; }
+            const grouped = {};
+            endorsements.forEach(e => { if (!grouped[e.skillTag]) grouped[e.skillTag] = { count: 0, contractors: [] }; grouped[e.skillTag].count++; grouped[e.skillTag].contractors.push(e.contractorName); });
+            document.getElementById('endorsementsSection').innerHTML = `
+                <h2 style="font-size: 1.25rem; margin-bottom: 14px;">🏷️ Skill Endorsements (${endorsements.length})</h2>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    ${Object.entries(grouped).map(([tag, data]) => `<span class="endorsement-tag" title="By: ${data.contractors.join(', ')}">✅ ${tag} <span style="background: rgba(0,201,167,0.2); padding: 2px 7px; border-radius: 10px; font-size: 0.72rem; margin-left: 3px;">${data.count}</span></span>`).join('')}
+                </div>
+            `;
+        }
+
+        async function loadWorkHistory() {
+            const result = await api(`/work-history/worker/${workerId}`);
+            const history = result.success ? result.data : [];
+            if (history.length === 0) { document.getElementById('historySection').innerHTML = `<h2 style="font-size: 1.25rem; margin-bottom: 14px;">📜 Verified Work History</h2><p style="color: var(--text-muted);">No completed jobs yet</p>`; return; }
+            const endorseRes = await api(`/work-history/endorsements/worker/${workerId}`);
+            const allEndorsements = endorseRes.success ? endorseRes.data : [];
+            const endorseByWh = {};
+            allEndorsements.forEach(e => { if (!endorseByWh[e.workHistoryId]) endorseByWh[e.workHistoryId] = []; endorseByWh[e.workHistoryId].push(e); });
+
+            document.getElementById('historySection').innerHTML = `
+                <h2 style="font-size: 1.25rem; margin-bottom: 14px;">📜 Verified Work History (${history.length})</h2>
+                ${history.map(wh => `
+                    <div class="wh-card">
+                        <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                            <div><div style="font-weight: 600; font-size: 1.02rem;">${wh.jobTitle || 'Job #' + wh.jobId}</div><div style="color: var(--text-muted); font-size: 0.86rem; margin-top: 3px;">${skillDisplay(wh.skillUsed)} • 📍 ${wh.location || 'N/A'} • ${wh.contractorName}</div></div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">${formatDate(wh.startDate)} — ${formatDate(wh.endDate)}</div>
+                        </div>
+                        ${wh.photos ? `<div class="photo-preview" style="margin-top: 10px;">${wh.photos.split(',').map(p => `<img src="${p}" class="photo-thumb-lg" onclick="window.open('${p}','_blank')">`).join('')}</div>` : ''}
+                        ${wh.contractorRated ? `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--glass-border);"><span style="color: var(--text-muted); font-size: 0.8rem;">Rating:</span> ${renderStars(wh.workerRating)} <strong style="color: var(--warning);">${wh.workerRating}/5</strong>${wh.workerNote ? `<div style="color: var(--text-secondary); font-size: 0.86rem; margin-top: 4px; font-style: italic;">"${wh.workerNote}"</div>` : ''}</div>` : ''}
+                        ${endorseByWh[wh.id] ? `<div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px;">${endorseByWh[wh.id].map(e => `<span class="endorsement-tag">✅ ${e.skillTag}</span>`).join('')}</div>` : ''}
+                    </div>
+                `).join('')}
+            `;
+        }
+    </script>
+</body>
+</html>

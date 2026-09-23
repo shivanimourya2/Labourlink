@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up — LabourLink</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <header class="navbar" id="navbar"></header>
+
+    <div class="page-container auth-wrapper">
+        <div class="auth-card" style="max-width: 540px;">
+            <div style="text-align: center; margin-bottom: 28px;">
+                <div style="font-size: 2.8rem; margin-bottom: 6px;">🏗️</div>
+                <h1 style="font-size: 1.7rem; font-weight: 800;" data-i18n="join_labourlink">Join LabourLink</h1>
+                <p style="color: var(--text-muted); font-size: 0.92rem;" data-i18n="create_profile">Create your verified professional profile</p>
+            </div>
+
+            <!-- Role Selector -->
+            <div class="role-selector" id="roleSelector">
+                <div class="role-option" onclick="selectRole('WORKER')" id="roleWorker">
+                    <div class="role-icon">👷</div>
+                    <div class="role-name" data-i18n="im_worker">Worker</div>
+                </div>
+                <div class="role-option" onclick="selectRole('CONTRACTOR')" id="roleContractor">
+                    <div class="role-icon">🏢</div>
+                    <div class="role-name" data-i18n="im_contractor">Contractor</div>
+                </div>
+            </div>
+
+            <form onsubmit="handleSignup(event)" id="signupForm">
+                <input type="hidden" id="selectedRole" value="">
+                <input type="hidden" id="latitude" value="">
+                <input type="hidden" id="longitude" value="">
+
+                <div class="form-group">
+                    <label><i class="fas fa-user" style="margin-right: 6px;"></i><span data-i18n="full_name">Full Name *</span></label>
+                    <input type="text" id="name" class="form-input" placeholder="Full Name" required>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-phone" style="margin-right: 6px;"></i><span data-i18n="phone_number">Phone Number *</span></label>
+                    <input type="tel" id="phone" class="form-input" placeholder="10-digit number" required pattern="[0-9]{10}">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-lock" style="margin-right: 6px;"></i><span data-i18n="password">Password *</span></label>
+                    <input type="password" id="password" class="form-input" placeholder="Min 4 characters" required minlength="4">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-map-marker-alt" style="margin-right: 6px;"></i><span data-i18n="city">Location *</span></label>
+                    <input type="text" id="city" class="form-input" placeholder="e.g. Andheri West, Mumbai, Maharashtra" required>
+                    <button type="button" class="location-btn mt-2" onclick="fillCurrentLocation('city')" data-i18n="use_my_location">
+                        📍 Use My Location
+                    </button>
+                </div>
+
+                <!-- Worker-specific -->
+                <div class="form-group" id="skillGroup" style="display: none;">
+                    <label><i class="fas fa-tools" style="margin-right: 6px;"></i><span data-i18n="primary_skill">Primary Skill *</span></label>
+                    <select id="skill" class="form-input">
+                        <option value="" data-i18n="select_skill">Select your skill</option>
+                        <option value="MASON">🧱 Mason</option>
+                        <option value="ELECTRICIAN">⚡ Electrician</option>
+                        <option value="PAINTER">🎨 Painter</option>
+                        <option value="LABOURER">💪 Labourer</option>
+                        <option value="PLUMBER">🔧 Plumber</option>
+                        <option value="CARPENTER">🪚 Carpenter</option>
+                        <option value="WELDER">🔥 Welder</option>
+                        <option value="TILE_FITTER">🔲 Tile Fitter</option>
+                        <option value="ROD_BINDER">🏗️ Rod Binder</option>
+                        <option value="HELPER">🤝 Helper</option>
+                    </select>
+                </div>
+
+                <!-- Contractor-specific -->
+                <div class="form-group" id="companyGroup" style="display: none;">
+                    <label><i class="fas fa-building" style="margin-right: 6px;"></i><span data-i18n="company_name">Company Name (Optional)</span></label>
+                    <input type="text" id="companyName" class="form-input" placeholder="e.g. RK Constructions">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 6px;" id="signupBtn" data-i18n="create_account">
+                    Create Account
+                </button>
+            </form>
+
+            <p style="text-align: center; margin-top: 18px; color: var(--text-muted); font-size: 0.9rem;">
+                <span data-i18n="already_have_account">Already have an account?</span>
+                <a href="/login.html" data-i18n="login_here">Login here</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let selectedRole = '';
+        document.addEventListener('DOMContentLoaded', () => {
+            renderNavbar('signup');
+            const params = new URLSearchParams(window.location.search);
+            const role = params.get('role');
+            if (role === 'WORKER' || role === 'CONTRACTOR') selectRole(role);
+        });
+
+        function selectRole(role) {
+            selectedRole = role;
+            document.getElementById('selectedRole').value = role;
+            document.getElementById('roleWorker').classList.toggle('selected', role === 'WORKER');
+            document.getElementById('roleContractor').classList.toggle('selected', role === 'CONTRACTOR');
+            document.getElementById('skillGroup').style.display = role === 'WORKER' ? 'block' : 'none';
+            document.getElementById('companyGroup').style.display = role === 'CONTRACTOR' ? 'block' : 'none';
+            if (role === 'WORKER') document.getElementById('skill').required = true;
+            else document.getElementById('skill').required = false;
+        }
+
+        async function handleSignup(e) {
+            e.preventDefault();
+            if (!selectedRole) { showToast('Please select Worker or Contractor', 'error'); return; }
+            const btn = document.getElementById('signupBtn');
+            btn.disabled = true; btn.textContent = '...';
+
+            const user = {
+                name: document.getElementById('name').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                password: document.getElementById('password').value,
+                city: document.getElementById('city').value,
+                role: selectedRole,
+                primarySkill: selectedRole === 'WORKER' ? document.getElementById('skill').value : null,
+                companyName: selectedRole === 'CONTRACTOR' ? document.getElementById('companyName').value.trim() : null
+            };
+
+            const result = await api('/users/signup', { method: 'POST', body: user });
+            if (result.success) {
+                localStorage.setItem('user', JSON.stringify(result.data));
+                showToast('Account created! 🎉', 'success');
+                setTimeout(() => {
+                    window.location.href = result.data.role === 'WORKER' ? '/worker-dashboard.html' : '/contractor-dashboard.html';
+                }, 500);
+            } else {
+                showToast(result.message || 'Signup failed', 'error');
+                btn.disabled = false; btn.textContent = t('create_account');
+            }
+        }
+    </script>
+</body>
+</html>
