@@ -168,8 +168,6 @@ Once the application starts, open:
 http://localhost:8080
 ```
 
-🎉 **LabourLink is now running locally!**
-
 ---
 
 ## 🤝 How to Contribute
